@@ -1,0 +1,6 @@
+node_modules/
+.next/
+.next-verify/
+.vercel
+.DS_Store
+*.log

@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+/* `static` keeps every token in the output: the grass scale is referenced
+   only through a dynamic `var(--color-grass-${n})`, which Tailwind's scanner
+   cannot see, so without this it tree-shakes the palette away. */
+@theme static {
+  --color-bg: #08090a;
+  --color-panel: #0f1113;
+  --color-panel-2: #14171a;
+  --color-line: #1d2126;
+  --color-line-soft: #16191d;
+  --color-ink: #eceef0;
+  --color-muted: #8a9099;
+  --color-faint: #5b6169;
+
+  --color-grass-0: #14181b;
+  --color-grass-1: #0e4429;
+  --color-grass-2: #006d32;
+  --color-grass-3: #26a641;
+  --color-grass-4: #47d364;
+
+  --color-claude: #d97757;
+  --color-codex: #9a8cff;
+  --color-cursor: #4aa8ff;
+  --color-github: #56d364;
+
+  --font-sans: ui-sans-serif, -apple-system, "SF Pro Text", "Inter", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+}
+
+html { color-scheme: dark; }
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tabular figures everywhere numbers are compared vertically. */
+.nums { font-variant-numeric: tabular-nums; }
+
+::selection { background: #2ea04340; }
