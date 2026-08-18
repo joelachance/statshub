@@ -11,12 +11,12 @@ The agent logs live on your machine, so a serverless deploy can't read them. Col
 therefore runs locally and commits a snapshot:
 
 ```
-npm run sync      # reads local logs + GitHub, writes data/stats.json
+npm run sync      # reads local logs + GitHub, writes data/users/<login>.json
 npm run dev       # preview at localhost:3000
 ```
 
-`data/stats.json` is committed, and the Next.js page renders it as a fully static page.
-Re-run `npm run sync` and redeploy whenever you want fresh numbers.
+Each sync writes one snapshot keyed by GitHub login, and that login is the URL slug:
+`/joelachance`. Snapshots are committed and the pages are prerendered at build time.
 
 ## Data sources
 
@@ -65,3 +65,45 @@ npm run sync && git commit -am "sync stats" && vercel --prod
 `SKIP_CURSOR=1 npm run sync` skips Cursor's multi-GB SQLite scan during development.
 Use `npm run verify` to production-build into a separate directory without disturbing a
 running dev server.
+
+
+## Multiple people
+
+Every file in `data/users/` becomes a static page at its GitHub-login slug, and `/`
+lists them when there is more than one. To add someone, they run `npm run sync` on their
+own machine and open a pull request with the resulting file.
+
+That PR *is* the verification step, which matters more than it looks. A hosted
+"CLI posts to an API" design needs identity proof before it means anything — otherwise
+anyone can POST any numbers under your username, and stats an employer cannot trust are
+worse than no stats. Doing it properly means GitHub OAuth device flow binding each slug
+to a GitHub user id, plus a datastore and rate limiting. The static route here is
+forward-compatible: `/[username]` renders the same either way.
+
+## Scheduled sync
+
+A launchd agent can refresh the snapshot automatically. launchd rather than cron —
+cron is deprecated on macOS and more often needs Full Disk Access.
+
+```
+./scripts/schedule.sh install      # daily at 09:00
+./scripts/schedule.sh status
+./scripts/schedule.sh run          # trigger now
+./scripts/schedule.sh logs
+./scripts/schedule.sh uninstall
+```
+
+Options:
+
+- `STATSHUB_HOUR=7 STATSHUB_MINUTE=30 ./scripts/schedule.sh install` to change the time.
+- `STATSHUB_PUSH=1 ./scripts/schedule.sh install` to `git push` after a successful sync
+  so Vercel redeploys. **Off by default** — nothing leaves the machine until you opt in.
+
+Notes:
+
+- launchd runs without a login shell, so tool paths are resolved at install time and
+  baked into the plist. If node is managed by nvm its path contains the version number,
+  so **re-run `install` after upgrading node**.
+- A lock directory prevents overlapping runs; the Cursor scan takes minutes.
+- Logs go to `~/Library/Logs/statshub-sync.log`.
+- The job only runs while the Mac is awake. A missed run is picked up the next day.

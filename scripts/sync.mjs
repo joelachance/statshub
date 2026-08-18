@@ -22,7 +22,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 
 const HOME = homedir();
-const OUT = path.join(process.cwd(), "data", "stats.json");
+const USERS_DIR = path.join(process.cwd(), "data", "users");
 const DAYS = 364; // GitHub caps the contributions window at 1 year; 52 weeks keeps us inside it
 
 const CLAUDE_DIR = path.join(HOME, ".claude", "projects");
@@ -441,7 +441,11 @@ async function main() {
     repos: github.repoBreakdown.slice(0, 10),
   };
 
-  mkdirSync(path.dirname(OUT), { recursive: true });
+  // One snapshot per user, keyed by GitHub login — that is the URL slug.
+  const slug = (github.login || "local").toLowerCase();
+  payload.slug = slug;
+  mkdirSync(USERS_DIR, { recursive: true });
+  const OUT = path.join(USERS_DIR, `${slug}.json`);
   writeFileSync(OUT, JSON.stringify(payload, null, 2));
 
   log(`\n  window        ${payload.windowStart} → ${payload.windowEnd} (${calendar.length}d)`);
