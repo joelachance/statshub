@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-18T17:50:03.525Z",
+  "generatedAt": "2026-08-18T18:10:03.961Z",
   "windowDays": 365,
   "windowStart": "2025-08-19",
   "windowEnd": "2026-08-18",
@@ -10,22 +10,22 @@
     "bio": ""
   },
   "headline": {
-    "tokens": 492824420,
-    "cachedTokens": 12109771138,
-    "prompts": 11811,
-    "promptsAllTime": 12088,
-    "sessions": 2518,
-    "commits": 2938,
-    "commitsAllTime": 5455,
+    "tokens": 493404554,
+    "cachedTokens": 12126954227,
+    "prompts": 11823,
+    "promptsAllTime": 12100,
+    "sessions": 2519,
+    "commits": 2941,
+    "commitsAllTime": 5458,
     "publicCommits": 637,
-    "privateContributions": 3512,
-    "contributions": 4212,
+    "privateContributions": 3515,
+    "contributions": 4215,
     "prs": 299,
-    "prsMerged": 246,
+    "prsMerged": 247,
     "prsAllTime": 944,
     "reviews": 1,
     "repos": 25,
-    "promptsPerPromptDay": 52,
+    "promptsPerPromptDay": 52.1,
     "promptDays": 227,
     "peakDay": {
       "date": "2026-05-17",
@@ -39,17 +39,17 @@
     {
       "slug": "claude",
       "label": "Claude Code",
-      "prompts": 2043,
-      "input": 229064413,
-      "output": 22514290,
-      "cached": 8704780290,
-      "tokens": 251578703,
-      "sessions": 570,
-      "projects": 96,
+      "prompts": 2055,
+      "input": 229577787,
+      "output": 22581050,
+      "cached": 8721963379,
+      "tokens": 252158837,
+      "sessions": 571,
+      "projects": 97,
       "models": [
         {
           "name": "claude-opus-5",
-          "output": 13199624
+          "output": 13266384
         },
         {
           "name": "claude-fable-5",
@@ -99,13 +99,13 @@
     {
       "slug": "github",
       "label": "GitHub",
-      "commits": 2938,
-      "commitsAllTime": 5455,
+      "commits": 2941,
+      "commitsAllTime": 5458,
       "prs": 299,
-      "prsMerged": 246,
+      "prsMerged": 247,
       "prsAllTime": 944,
-      "contributions": 4212,
-      "privateContributions": 3512,
+      "contributions": 4215,
+      "privateContributions": 3515,
       "publicCommits": 637,
       "reviews": 1,
       "issues": 1,
@@ -4368,16 +4368,16 @@
     },
     {
       "date": "2026-08-18",
-      "prompts": 53,
-      "tokens": 3693745,
-      "contributions": 3,
+      "prompts": 65,
+      "tokens": 4273879,
+      "contributions": 6,
       "byTool": {
         "claude": {
-          "prompts": 53,
-          "tokens": 3693745
+          "prompts": 65,
+          "tokens": 4273879
         }
       },
-      "score": 56
+      "score": 71
     }
   ],
   "repos": [
