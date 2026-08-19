@@ -1,28 +1,32 @@
 import { notFound } from "next/navigation";
-import { allUsers, getUser } from "@/lib/users";
+import { getUser, listUsers, usingBlob } from "@/lib/store";
 import Dashboard from "@/components/Dashboard";
 
-// Every synced user becomes a static page at build time.
-export function generateStaticParams() {
-  return allUsers().map((u) => ({ username: u.slug }));
-}
+export const revalidate = 60;
+// File mode prerenders the known set; hosted mode accepts profiles that were
+// published after the last build.
+export const dynamicParams = true;
 
-export const dynamicParams = false;
+export async function generateStaticParams() {
+  if (usingBlob()) return [];
+  return (await listUsers()).map((u) => ({ username: u.slug }));
+}
 
 export async function generateMetadata({ params }) {
   const { username } = await params;
-  const u = getUser(username);
-  if (!u) return {};
+  const u = await getUser(username);
+  if (!u) return { title: "Not found" };
   const name = u.profile?.name || u.slug;
+  const h = u.headline;
   return {
     title: `${name} — engineering activity`,
-    description: `${u.headline.prompts.toLocaleString()} prompts, ${u.headline.commits.toLocaleString()} commits and ${(u.headline.tokens / 1e6).toFixed(0)}M tokens over the last 12 months.`,
+    description: `${h.prompts.toLocaleString()} prompts, ${h.commits.toLocaleString()} commits and ${(h.tokens / 1e6).toFixed(0)}M tokens over the last 12 months.`,
   };
 }
 
 export default async function UserPage({ params }) {
   const { username } = await params;
-  const stats = getUser(username);
+  const stats = await getUser(username);
   if (!stats) notFound();
   return <Dashboard stats={stats} />;
 }

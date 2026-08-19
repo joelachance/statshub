@@ -47,14 +47,26 @@ These are the traps that silently produce wrong headline numbers:
 
 Cursor exposes no token counts, so the dashboard shows a dash rather than inventing one.
 
-## Deploy to Vercel
+## Deploy
+
+File mode needs nothing but a deploy:
 
 ```
-npm i -g vercel && vercel
+npx vercel
 ```
 
-No environment variables and no runtime data access — the committed JSON is the whole
-dataset, so the page is prerendered at build time.
+Hosted setup, so other people can publish:
+
+1. **Create a GitHub OAuth App** — <https://github.com/settings/developers> → New OAuth App.
+   Any homepage/callback URL works; device flow does not use the callback. Then enable
+   **Device Flow** in the app's settings. Copy the **Client ID** (it is public, no secret needed).
+2. **Create a Blob store** — Vercel dashboard → Storage → Blob. Vercel injects
+   `BLOB_READ_WRITE_TOKEN` automatically.
+3. **Publish the CLI**, or have people run it from a clone:
+   ```
+   STATSHUB_CLIENT_ID=<client-id> STATSHUB_SERVER=https://your-app.vercel.app npm run cli login
+   ```
+   Baking the client id into `bin/statshub.mjs` before `npm publish` saves users a step.
 
 ## Refreshing
 
@@ -67,18 +79,52 @@ Use `npm run verify` to production-build into a separate directory without distu
 running dev server.
 
 
-## Multiple people
+## Two modes
 
-Every file in `data/users/` becomes a static page at its GitHub-login slug, and `/`
-lists them when there is more than one. To add someone, they run `npm run sync` on their
-own machine and open a pull request with the resulting file.
+The app runs the same either way; the storage backend is chosen at runtime.
 
-That PR *is* the verification step, which matters more than it looks. A hosted
-"CLI posts to an API" design needs identity proof before it means anything — otherwise
-anyone can POST any numbers under your username, and stats an employer cannot trust are
-worse than no stats. Doing it properly means GitHub OAuth device flow binding each slug
-to a GitHub user id, plus a datastore and rate limiting. The static route here is
-forward-compatible: `/[username]` renders the same either way.
+**File mode** (default) — snapshots live in `data/users/<login>.json`, are committed,
+and pages prerender at build time. No server, no database, and the git history doubles
+as an audit trail.
+
+**Hosted mode** — set `BLOB_READ_WRITE_TOKEN` and snapshots move to Vercel Blob.
+Anyone can publish with the CLI, `/[username]` revalidates every 60s, and new profiles
+appear without a redeploy.
+
+## The CLI
+
+```
+npx statshub login          # GitHub device flow
+npx statshub sync           # collect and publish
+npx statshub sync --dry-run # collect and print, publish nothing
+```
+
+`login` requests `read:user` only, which counts public activity. Private commits and PRs
+need the classic `repo` scope, so that is opt-in:
+
+```
+npx statshub login --include-private
+```
+
+Worth understanding before you use it: `repo` grants read/write to your repositories,
+and the token is sent to the server to prove who you are. The server verifies it once
+against GitHub and never stores it — but if you would rather not hand over a broad token,
+stay on the default scope and accept public-only counts.
+
+## Identity
+
+The server never trusts a username in the request body. It resolves the account from the
+bearer token via GitHub, and writes to that slug:
+
+```
+POST /api/sync   body: {"slug":"torvalds", "profile":{"name":"Linus"}}
+                 →    {"ok":true, "slug":"joelachance"}
+```
+
+Slug, login, display name, avatar and bio all come from the authenticated account, so a
+snapshot can only ever land on the publisher's own page under their real name. Publishing
+is limited to once a minute per account, and payloads are size-capped and field-filtered
+before storage.
 
 ## Scheduled sync
 
