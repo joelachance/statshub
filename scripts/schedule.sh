@@ -45,7 +45,7 @@ install)
   <dict>
     <key>PATH</key><string>$BIN_PATH</string>
     <key>HOME</key><string>$HOME</string>
-    <key>STATSHUB_CLIENT_ID</key><string>${STATSHUB_CLIENT_ID:-}</string>
+    <key>STATSHUB_KEY</key><string>${STATSHUB_KEY:-}</string>
     <key>STATSHUB_SERVER</key><string>${STATSHUB_SERVER:-}</string>
   </dict>
   <key>WorkingDirectory</key><string>$REPO</string>
@@ -69,7 +69,7 @@ PLISTEOF
   echo "  plist  $PLIST"
   echo "  log    $LOG"
   echo "  server ${STATSHUB_SERVER:-<default>}"
-  [ -n "${STATSHUB_CLIENT_ID:-}" ] || echo "  ${0##*/}: STATSHUB_CLIENT_ID was empty — set it and re-run install"
+  [ -n "${STATSHUB_KEY:-}" ] || echo "  note: STATSHUB_KEY was empty — the key saved by your first manual run will be used"
   ;;
 uninstall)
   launchctl bootout "gui/$UID/$LABEL" 2>/dev/null || true

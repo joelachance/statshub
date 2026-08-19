@@ -1,23 +1,38 @@
 import { notFound } from "next/navigation";
-import { getUser } from "@/lib/store";
+import { getUserBySlug, getHalves } from "@/lib/store";
+import { getSession } from "@/lib/session";
+import { buildSnapshot } from "@/lib/snapshot.mjs";
 import Dashboard from "@/components/Dashboard";
+import OwnerBar from "@/components/OwnerBar";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }) {
   const { username } = await params;
-  const u = await getUser(username);
-  if (!u) return { title: "Not found" };
-  const h = u.headline;
+  const user = await getUserBySlug(username);
+  if (!user) return { title: "Not found" };
+  const { agents, github } = await getHalves(user.slug);
+  const h = buildSnapshot({ user, agents, gh: github }).headline;
   return {
-    title: `${u.profile?.name || u.slug} — engineering activity`,
+    title: `${user.name || user.slug} — engineering activity`,
     description: `${h.prompts.toLocaleString()} prompts, ${h.commits.toLocaleString()} commits and ${(h.tokens / 1e6).toFixed(0)}M tokens over the last 12 months.`,
   };
 }
 
-export default async function UserPage({ params }) {
+export default async function UserPage({ params, searchParams }) {
   const { username } = await params;
-  const stats = await getUser(username);
-  if (!stats) notFound();
-  return <Dashboard stats={stats} />;
+  const user = await getUserBySlug(username);
+  if (!user) notFound();
+
+  const { agents, github } = await getHalves(user.slug);
+  const stats = buildSnapshot({ user, agents, gh: github });
+  const isOwner = (await getSession()) === user.slug;
+  const { key } = await searchParams;
+
+  return (
+    <>
+      {isOwner && <OwnerBar slug={user.slug} hasAgents={stats.has.agents} freshKey={key} keyPrefix={user.key_prefix} scope={user.gh_scope} />}
+      <Dashboard stats={stats} />
+    </>
+  );
 }
