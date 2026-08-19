@@ -7,6 +7,8 @@ const TOOLS = [
   ["claude", "Claude Code", "var(--color-claude)"],
   ["codex", "Codex", "var(--color-codex)"],
   ["cursor", "Cursor", "var(--color-cursor)"],
+  ["opencode", "opencode", "var(--color-opencode)"],
+  ["pi", "pi", "var(--color-pi)"],
 ];
 
 /** Quintile-ish thresholds from the data itself, so the grid never washes out. */

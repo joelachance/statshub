@@ -4,10 +4,11 @@
 // dependency and no external requests. All are on a 24x24 grid and drawn with
 // `fill="currentColor"`, so colour comes from the caller.
 //
-// Codex is the exception: the OpenAI mark has been withdrawn from simple-icons,
-// and an approximation drawn from memory would be a worse likeness than none.
-// It gets a neutral prompt-caret glyph instead — swap in the official SVG here
-// if you want the real thing.
+// Codex, opencode and pi are the exceptions. The OpenAI mark has been withdrawn
+// from simple-icons, and opencode and pi have no mark there at all; a brand
+// approximation drawn from memory would be a worse likeness than none. Each gets
+// an honest neutral glyph instead — a prompt caret, angle brackets and a pi
+// letterform. Swap in the official SVGs here if you want the real marks.
 
 export const TOOL_ICONS = {
   claude: {
@@ -26,6 +27,18 @@ export const TOOL_ICONS = {
     color: "var(--color-cursor)",
     path: "M11.503.131 1.891 5.678a.84.84 0 0 0-.42.726v11.188c0 .3.162.575.42.724l9.609 5.55a1 1 0 0 0 .998 0l9.61-5.55a.84.84 0 0 0 .42-.724V6.404a.84.84 0 0 0-.42-.726L12.497.131a1.01 1.01 0 0 0-.996 0M2.657 6.338h18.55c.263 0 .43.287.297.515L12.23 22.918c-.062.107-.229.064-.229-.06V12.335a.59.59 0 0 0-.295-.51l-9.11-5.257c-.109-.063-.064-.23.061-.23",
   },
+  opencode: {
+    label: "opencode",
+    color: "var(--color-opencode)",
+    // Neutral stand-in: angle brackets, not a brand mark.
+    path: "M9.4 7.2 4.6 12l4.8 4.8 1.7-1.7L7.9 12l3.2-3.1L9.4 7.2Zm5.2 0-1.7 1.7L16.1 12l-3.2 3.1 1.7 1.7L19.4 12l-4.8-4.8Z",
+  },
+  pi: {
+    label: "pi",
+    color: "var(--color-pi)",
+    // Neutral stand-in: a pi letterform, not a brand mark.
+    path: "M3.5 5.5h17v3h-3.5v9.2c0 .6.3.9.9.9.4 0 .8-.1 1.1-.4l.8 2.2c-.6.4-1.4.6-2.3.6-2 0-3.2-1.1-3.2-3.1V8.5h-3.6v2.7c0 4-1.2 6.9-3.6 8.7l-2.2-1.9c1.9-1.5 2.8-3.7 2.8-6.8V8.5H3.5v-3Z",
+  },
   github: {
     label: "GitHub",
     color: "var(--color-github)",
@@ -33,7 +46,7 @@ export const TOOL_ICONS = {
   },
 };
 
-export default function ToolIcon({ tool, size = 16, className = "" }) {
+export default function ToolIcon({ tool, size = 16, className = "", style }) {
   const icon = TOOL_ICONS[tool];
   if (!icon) return null;
   return (
@@ -45,6 +58,7 @@ export default function ToolIcon({ tool, size = 16, className = "" }) {
       height={size}
       fill="currentColor"
       className={className}
+      style={style}
     >
       <path d={icon.path} />
     </svg>

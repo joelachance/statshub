@@ -1,9 +1,12 @@
 import { compact, full } from "@/lib/format";
+import ToolIcon from "@/components/ToolIcon";
 
 const META = {
   claude: { color: "var(--color-claude)", note: "input + output, deduped per API request" },
   codex:  { color: "var(--color-codex)",  note: "per-turn deltas, not cumulative totals" },
   cursor: { color: "var(--color-cursor)", note: "Cursor does not expose token counts" },
+  opencode: { color: "var(--color-opencode)", note: "reasoning counted alongside output" },
+  pi:     { color: "var(--color-pi)",     note: "tool output has its own role, so prompts are exact" },
 };
 
 export default function Tools({ tools }) {
@@ -20,7 +23,7 @@ export default function Tools({ tools }) {
           <div key={t.slug}>
             <div className="flex items-baseline justify-between gap-3 mb-2">
               <span className="flex items-center gap-2 text-[13px] text-ink">
-                <i className="h-[8px] w-[8px] rounded-full shrink-0" style={{ background: m.color }} />
+                <ToolIcon tool={t.slug} size={14} className="shrink-0" style={{ color: m.color }} />
                 {t.label}
               </span>
               <span className="text-[11px] text-muted nums">
