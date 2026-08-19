@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { getUser, putUser, normalizeSlug } from "@/lib/store";
+import { lastPublishedAt, putUser, normalizeSlug, configured } from "@/lib/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,6 +55,8 @@ function sanitize(body) {
 }
 
 export async function POST(req) {
+  if (!configured()) return bad(503, "server has no database configured");
+
   const token = req.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
   if (!token) return bad(401, "missing bearer token");
 
@@ -82,8 +84,8 @@ export async function POST(req) {
   const clean = sanitize(body);
   if (!clean) return bad(422, "snapshot failed validation");
 
-  const existing = await getUser(slug);
-  if (existing?.publishedAt && Date.now() - Date.parse(existing.publishedAt) < MIN_INTERVAL_MS) {
+  const last = await lastPublishedAt(slug);
+  if (last && Date.now() - last.getTime() < MIN_INTERVAL_MS) {
     return bad(429, "already published in the last minute");
   }
 
@@ -96,10 +98,8 @@ export async function POST(req) {
     avatar: String(me.avatar_url || "").startsWith("https://avatars.githubusercontent.com/") ? me.avatar_url : "",
     bio: String(me.bio || "").slice(0, 300),
   };
-  clean.githubId = me.id;
-  clean.publishedAt = new Date().toISOString();
-
-  try { await putUser(slug, clean); } catch (e) { return bad(500, `store failed: ${e.message}`); }
+  // github_id and published_at are columns, not payload fields.
+  try { await putUser(slug, me.id, clean); } catch (e) { return bad(500, `store failed: ${e.message}`); }
 
   revalidatePath(`/${slug}`);
   revalidatePath("/");

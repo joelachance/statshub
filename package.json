@@ -3,17 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "sync": "node scripts/sync.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "verify": "rm -rf .next-verify && NEXT_DIST_DIR=.next-verify next build",
-    "cli": "node bin/statshub.mjs"
+    "statshub": "node bin/statshub.mjs"
   },
   "dependencies": {
-    "@vercel/blob": "^2.8.0",
     "gsap": "^3.15.0",
     "next": "15.5.4",
+    "pg": "^8.23.0",
     "react": "19.1.1",
     "react-dom": "19.1.1"
   },

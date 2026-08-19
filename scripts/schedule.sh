@@ -20,13 +20,13 @@ usage() { echo "usage: $0 {install|uninstall|status|run|logs}"; exit 1; }
 case "$1" in
 install)
   need=""
-  for t in node npm git gh sqlite3; do
+  for t in node sqlite3; do
     command -v "$t" >/dev/null || need="$need $t"
   done
   [ -z "$need" ] || { echo "missing tools:$need"; exit 1; }
 
   # Bake in every directory the job needs, deduped, in a stable order.
-  BIN_PATH="$(for t in node npm git gh sqlite3; do dirname "$(command -v $t)"; done \
+  BIN_PATH="$(for t in node sqlite3; do dirname "$(command -v $t)"; done \
               | awk '!seen[$0]++' | paste -sd: -):/usr/bin:/bin:/usr/sbin:/sbin"
 
   mkdir -p "$(dirname "$PLIST")" "$(dirname "$LOG")"
@@ -45,7 +45,8 @@ install)
   <dict>
     <key>PATH</key><string>$BIN_PATH</string>
     <key>HOME</key><string>$HOME</string>
-    <key>STATSHUB_PUSH</key><string>${STATSHUB_PUSH:-0}</string>
+    <key>STATSHUB_CLIENT_ID</key><string>${STATSHUB_CLIENT_ID:-}</string>
+    <key>STATSHUB_SERVER</key><string>${STATSHUB_SERVER:-}</string>
   </dict>
   <key>WorkingDirectory</key><string>$REPO</string>
   <key>StartCalendarInterval</key>
@@ -67,7 +68,8 @@ PLISTEOF
   echo "installed — runs daily at $(printf '%02d:%02d' "$HOUR" "$MINUTE")"
   echo "  plist  $PLIST"
   echo "  log    $LOG"
-  echo "  push   ${STATSHUB_PUSH:-0} (STATSHUB_PUSH=1 $0 install  to auto-deploy)"
+  echo "  server ${STATSHUB_SERVER:-<default>}"
+  [ -n "${STATSHUB_CLIENT_ID:-}" ] || echo "  ${0##*/}: STATSHUB_CLIENT_ID was empty — set it and re-run install"
   ;;
 uninstall)
   launchctl bootout "gui/$UID/$LABEL" 2>/dev/null || true

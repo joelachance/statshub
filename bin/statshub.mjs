@@ -1,190 +1,160 @@
 #!/usr/bin/env node
 /**
- * statshub CLI — collect local coding-agent activity and publish it.
+ * statshub — one command. Collects local coding-agent activity and uploads it.
  *
- * Auth is GitHub's OAuth device flow. The server never accepts a claimed
- * username: it resolves identity from the token itself, so a snapshot can only
- * ever be written to the slug of the account that authorised it.
+ *   npx statshub
+ *
+ * The first run asks GitHub to confirm who you are (a one-time code), because
+ * the server derives your page's slug from the verified account rather than
+ * anything the client claims. The token is cached, so later runs just upload.
  */
-import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { collect, setLogger } from "../lib/collect.mjs";
 
-const CONFIG_DIR = path.join(homedir(), ".statshub");
-const CONFIG = path.join(CONFIG_DIR, "config.json");
-const DEFAULT_SERVER = process.env.STATSHUB_SERVER || "http://localhost:3000";
-// Public by design: device flow needs no client secret.
+const CONFIG = path.join(homedir(), ".statshub.json");
+const SERVER = (process.env.STATSHUB_SERVER || "https://statshub.vercel.app").replace(/\/$/, "");
 const CLIENT_ID = process.env.STATSHUB_CLIENT_ID || "";
 
+const argv = process.argv.slice(2);
+const has = (f) => argv.includes(f);
+const val = (f, d = null) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : d; };
+
 const c = {
-  dim: (s) => `\x1b[2m${s}\x1b[0m`,
-  bold: (s) => `\x1b[1m${s}\x1b[0m`,
-  green: (s) => `\x1b[32m${s}\x1b[0m`,
-  red: (s) => `\x1b[31m${s}\x1b[0m`,
+  dim: (s) => `\x1b[2m${s}\x1b[0m`, bold: (s) => `\x1b[1m${s}\x1b[0m`,
+  green: (s) => `\x1b[32m${s}\x1b[0m`, red: (s) => `\x1b[31m${s}\x1b[0m`,
   cyan: (s) => `\x1b[36m${s}\x1b[0m`,
 };
 const say = (...a) => console.log(...a);
 const die = (m) => { console.error(c.red("error: ") + m); process.exit(1); };
-
-/* ---------- config ---------- */
-
-function readConfig() {
-  try { return JSON.parse(readFileSync(CONFIG, "utf8")); } catch { return {}; }
-}
-function writeConfig(cfg) {
-  mkdirSync(CONFIG_DIR, { recursive: true });
-  writeFileSync(CONFIG, JSON.stringify(cfg, null, 2));
-  chmodSync(CONFIG, 0o600); // the token is a credential
-}
-
-/* ---------- device flow ---------- */
-
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function deviceLogin(scope) {
-  if (!CLIENT_ID) {
-    die("no OAuth client id. Set STATSHUB_CLIENT_ID, or see README > Hosted setup.");
-  }
+if (has("--help") || has("-h")) {
+  say(`
+${c.bold("statshub")} — publish your coding-agent activity
+
+  ${c.bold("npx statshub")} [options]
+
+  --private        also count private commits and PRs (asks for the broader
+                   \`repo\` scope; public-only otherwise)
+  --dry-run        collect and print, upload nothing
+  --out FILE       also write the snapshot to a file
+  --skip-cursor    skip Cursor's multi-GB scan
+  --server URL     override the destination
+
+${c.dim(`server: ${SERVER}`)}
+`);
+  process.exit(0);
+}
+
+/* ---------- auth (inline, first run only) ---------- */
+
+const readToken = () => { try { return JSON.parse(readFileSync(CONFIG, "utf8")); } catch { return {}; } };
+const clearToken = () => { try { rmSync(CONFIG); } catch {} };
+function saveToken(v) {
+  writeFileSync(CONFIG, JSON.stringify(v, null, 2));
+  chmodSync(CONFIG, 0o600); // it is a credential
+}
+
+async function authenticate(scope) {
+  if (!CLIENT_ID) die("STATSHUB_CLIENT_ID is not set (see README > Setup).");
+
   const start = await fetch("https://github.com/login/device/code", {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify({ client_id: CLIENT_ID, scope }),
   }).then((r) => r.json());
-
-  if (start.error) die(`${start.error}: ${start.error_description || ""}`);
+  if (start.error) die(start.error_description || start.error);
 
   say("");
-  say(`  ${c.bold("One-time code:")}  ${c.cyan(start.user_code)}`);
-  say(`  ${c.dim("Open")} ${start.verification_uri} ${c.dim("and enter it.")}`);
-  say("");
-  process.stdout.write(c.dim("  waiting for approval… "));
+  say(`  ${c.bold("Code:")} ${c.cyan(start.user_code)}   ${c.dim("→")} ${start.verification_uri}`);
+  process.stdout.write(c.dim("  waiting… "));
 
   const deadline = Date.now() + (start.expires_in ?? 900) * 1000;
   let interval = (start.interval ?? 5) * 1000;
 
   while (Date.now() < deadline) {
     await sleep(interval);
-    const res = await fetch("https://github.com/login/oauth/access_token", {
+    const r = await fetch("https://github.com/login/oauth/access_token", {
       method: "POST",
       headers: { Accept: "application/json", "Content-Type": "application/json" },
       body: JSON.stringify({
-        client_id: CLIENT_ID,
-        device_code: start.device_code,
+        client_id: CLIENT_ID, device_code: start.device_code,
         grant_type: "urn:ietf:params:oauth:grant-type:device_code",
       }),
-    }).then((r) => r.json());
+    }).then((x) => x.json());
 
-    if (res.access_token) { say(c.green("approved")); return { token: res.access_token, scope }; }
-    if (res.error === "authorization_pending") continue;
-    if (res.error === "slow_down") { interval += (res.interval ?? 5) * 1000; continue; }
-    say("");
-    die(res.error_description || res.error || "device flow failed");
+    if (r.access_token) {
+      say(c.green("ok"));
+      saveToken({ token: r.access_token, scope });
+      return r.access_token;
+    }
+    if (r.error === "authorization_pending") continue;
+    if (r.error === "slow_down") { interval += (r.interval ?? 5) * 1000; continue; }
+    say(""); die(r.error_description || r.error);
   }
-  say("");
-  die("timed out waiting for approval");
+  say(""); die("timed out waiting for approval");
 }
 
-/* ---------- commands ---------- */
+/* ---------- upload ---------- */
 
-async function cmdLogin(args) {
-  const wantPrivate = args.includes("--include-private");
-  // `repo` is the only classic scope that lets commit search see private
-  // repositories. It is broad, so it stays opt-in and is called out plainly.
-  const scope = wantPrivate ? "read:user repo" : "read:user";
-
-  if (wantPrivate) {
-    say(c.dim("\n  --include-private requests the `repo` scope so private commits and PRs"));
-    say(c.dim("  are counted. That grants read/write access to your repositories, and the"));
-    say(c.dim("  token is sent to the server to prove who you are. Without it, only public"));
-    say(c.dim("  activity is counted and the token stays minimal (read:user).\n"));
-  }
-
-  const { token } = await deviceLogin(scope);
-  const me = await fetch("https://api.github.com/user", {
-    headers: { Authorization: `Bearer ${token}`, "User-Agent": "statshub" },
-  }).then((r) => r.json());
-  if (!me.login) die("token did not resolve to a GitHub user");
-
-  writeConfig({ ...readConfig(), token, scope, login: me.login });
-  say(`  signed in as ${c.bold("@" + me.login)}  ${c.dim(`(scope: ${scope})`)}`);
-  say(c.dim(`  token stored at ${CONFIG} (0600)\n`));
-}
-
-function cmdLogout() {
-  try { rmSync(CONFIG); say("signed out"); } catch { say("not signed in"); }
-}
-
-async function cmdWhoami() {
-  const { login, scope } = readConfig();
-  if (!login) return say("not signed in — run: statshub login");
-  say(`@${login}  ${c.dim(`(scope: ${scope || "unknown"})`)}`);
-}
-
-async function cmdSync(args) {
-  const cfg = readConfig();
-  const token = cfg.token || process.env.GITHUB_TOKEN;
-  if (!token) die("not signed in — run: statshub login");
-
-  const dryRun = args.includes("--dry-run");
-  const skipCursor = args.includes("--skip-cursor") || !!process.env.SKIP_CURSOR;
-  const outIdx = args.indexOf("--out");
-  const outFile = outIdx >= 0 ? args[outIdx + 1] : null;
-  const srvIdx = args.indexOf("--server");
-  const server = (srvIdx >= 0 ? args[srvIdx + 1] : DEFAULT_SERVER).replace(/\/$/, "");
-
-  setLogger((...a) => say(c.dim("  " + a.join(" "))));
-  say(c.bold("\nstatshub"), c.dim("— collecting\n"));
-
-  const snapshot = await collect({ token, skipCursor });
-  const h = snapshot.headline;
-
-  say("");
-  say(`  ${c.bold(h.tokens.toLocaleString())} tokens   ${c.dim(`+${h.cachedTokens.toLocaleString()} cached`)}`);
-  say(`  ${c.bold(h.prompts.toLocaleString())} prompts  ${c.dim(`${h.promptsPerPromptDay}/day over ${h.promptDays} days`)}`);
-  say(`  ${c.bold(h.commits.toLocaleString())} commits  ${c.bold(h.prs.toLocaleString())} PRs`);
-  say("");
-
-  if (outFile) {
-    writeFileSync(outFile, JSON.stringify(snapshot, null, 2));
-    say(`  wrote ${outFile}`);
-  }
-  if (dryRun) { say(c.dim("  --dry-run: nothing published\n")); return; }
-
+async function upload(server, token, snapshot) {
   const res = await fetch(`${server}/api/sync`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(snapshot),
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) die(`publish failed (${res.status}): ${body.error || "unknown"}`);
-
-  say(`  ${c.green("published")} → ${server}/${body.slug}\n`);
+  return { ok: res.ok, status: res.status, body };
 }
 
-function cmdHelp() {
-  say(`
-${c.bold("statshub")} — aggregate your coding-agent activity
+/* ---------- run ---------- */
 
-  ${c.bold("statshub login")} [--include-private]   authenticate with GitHub
-  ${c.bold("statshub sync")}  [--server URL]        collect and publish
-                  [--dry-run] [--out FILE] [--skip-cursor]
-  ${c.bold("statshub whoami")}                      show the signed-in account
-  ${c.bold("statshub logout")}                      remove the stored token
+const wantPrivate = has("--private");
+const scope = wantPrivate ? "read:user repo" : "read:user";
+const server = (val("--server") || SERVER).replace(/\/$/, "");
 
-${c.dim("Environment: STATSHUB_SERVER, STATSHUB_CLIENT_ID")}
-`);
+let saved = readToken();
+// A saved public-only token can't count private work, so widen it on request.
+if (saved.token && wantPrivate && !String(saved.scope || "").includes("repo")) saved = {};
+let token = saved.token || process.env.GITHUB_TOKEN;
+
+if (!token) {
+  if (wantPrivate) {
+    say(c.dim("\n  --private asks for the `repo` scope so private commits and PRs are"));
+    say(c.dim("  counted. That grants read/write to your repositories, and the token is"));
+    say(c.dim("  sent to the server once to prove who you are. It is never stored there."));
+  }
+  token = await authenticate(scope);
 }
 
-const [cmd, ...args] = process.argv.slice(2);
-const run = {
-  login: () => cmdLogin(args),
-  logout: cmdLogout,
-  whoami: cmdWhoami,
-  sync: () => cmdSync(args),
-  help: cmdHelp,
-  undefined: cmdHelp,
-}[cmd];
+setLogger((...a) => say(c.dim("  " + a.join(" "))));
+say(c.bold("\nstatshub"), c.dim("— collecting\n"));
 
-if (!run) die(`unknown command: ${cmd}`);
-await run();
+const snapshot = await collect({ token, skipCursor: has("--skip-cursor") || !!process.env.SKIP_CURSOR });
+const h = snapshot.headline;
+
+say("");
+say(`  ${c.bold(h.tokens.toLocaleString())} tokens   ${c.dim(`+${h.cachedTokens.toLocaleString()} cached`)}`);
+say(`  ${c.bold(h.prompts.toLocaleString())} prompts  ${c.dim(`${h.promptsPerPromptDay}/day over ${h.promptDays} days`)}`);
+say(`  ${c.bold(h.commits.toLocaleString())} commits  ${c.bold(h.prs.toLocaleString())} PRs`);
+say("");
+
+const outFile = val("--out");
+if (outFile) { writeFileSync(outFile, JSON.stringify(snapshot, null, 2)); say(`  wrote ${outFile}`); }
+if (has("--dry-run")) { say(c.dim("  --dry-run: nothing uploaded\n")); process.exit(0); }
+
+let res = await upload(server, token, snapshot);
+
+// A cached token can be revoked or expire. Re-authenticate once rather than
+// making the user run some separate logout command.
+if (res.status === 401 && saved.token) {
+  say(c.dim("  saved sign-in is no longer valid — asking GitHub again"));
+  clearToken();
+  token = await authenticate(scope);
+  res = await upload(server, token, snapshot);
+}
+
+if (!res.ok) die(`upload failed (${res.status}): ${res.body.error || "unknown"}`);
+say(`  ${c.green("published")} → ${server}/${res.body.slug}\n`);
