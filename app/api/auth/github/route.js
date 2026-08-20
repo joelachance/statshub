@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
+import { publicOrigin } from "@/lib/origin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,6 +11,7 @@ export async function GET(req) {
   if (!id) return new Response("GITHUB_CLIENT_ID is not set", { status: 503 });
 
   const url = new URL(req.url);
+  const origin = publicOrigin(req);
   // `repo` is the only classic scope that lets commit search see private
   // repositories, so it stays opt-in rather than being requested up front.
   const scope = url.searchParams.get("private") === "1" ? "read:user repo" : "read:user";
@@ -22,7 +24,7 @@ export async function GET(req) {
 
   const to = new URL("https://github.com/login/oauth/authorize");
   to.searchParams.set("client_id", id);
-  to.searchParams.set("redirect_uri", new URL("/api/auth/callback", url.origin).toString());
+  to.searchParams.set("redirect_uri", `${origin}/api/auth/callback`);
   to.searchParams.set("scope", scope);
   to.searchParams.set("state", state);
   return Response.redirect(to.toString(), 302);

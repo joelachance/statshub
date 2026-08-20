@@ -1,6 +1,8 @@
 import { getUserBySlug, putGitHub } from "@/lib/store";
 import { getSession } from "@/lib/session";
+import { publicOrigin } from "@/lib/origin";
 import { collectGitHub, githubToJSON } from "@/lib/github.mjs";
+import { freshToken } from "@/lib/ghtoken";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,13 +14,14 @@ export async function POST(req) {
   if (!slug) return Response.json({ error: "not signed in" }, { status: 401 });
 
   const user = await getUserBySlug(slug);
-  if (!user?.gh_token) return Response.json({ error: "sign in again to refresh" }, { status: 400 });
+  const token = await freshToken(user);
+  if (!token) return Response.json({ error: "sign in again to refresh" }, { status: 400 });
 
   try {
-    const gh = await collectGitHub(user.gh_token);
+    const gh = await collectGitHub(token);
     await putGitHub(slug, githubToJSON(gh));
   } catch (e) {
     return Response.json({ error: e.message }, { status: 502 });
   }
-  return Response.redirect(new URL(`/${slug}`, new URL(req.url).origin), 302);
+  return Response.redirect(`${publicOrigin(req)}/${slug}`, 302);
 }

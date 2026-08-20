@@ -1,29 +1,6 @@
 {
   "version": "0.0.1",
   "configurations": [
-    {
-      "name": "statshub",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev"
-      ],
-      "port": 3000,
-      "autoPort": true
-    },
-    {
-      "name": "statshub-card",
-      "runtimeExecutable": "env",
-      "runtimeArgs": [
-        "NEXT_DIST_DIR=.next-card",
-        "npx",
-        "next",
-        "dev",
-        "--port",
-        "3210"
-      ],
-      "port": 3210,
-      "autoPort": true
-    }
+    { "name": "statshub", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3333 }
   ]
 }

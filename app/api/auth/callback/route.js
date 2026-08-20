@@ -2,16 +2,18 @@ import { cookies } from "next/headers";
 import { upsertUser, putGitHub } from "@/lib/store";
 import { setSession } from "@/lib/session";
 import { collectGitHub, githubToJSON } from "@/lib/github.mjs";
+import { publicOrigin } from "@/lib/origin";
+import { tokenFields } from "@/lib/ghtoken";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // the contributions query plus five searches
 
-const fail = (origin, why) => Response.redirect(new URL(`/?error=${encodeURIComponent(why)}`, origin), 302);
+const fail = (origin, why) => Response.redirect(`${origin}/?error=${encodeURIComponent(why)}`, 302);
 
 export async function GET(req) {
   const url = new URL(req.url);
-  const origin = url.origin;
+  const origin = publicOrigin(req);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
 
@@ -30,7 +32,7 @@ export async function GET(req) {
       client_id: process.env.GITHUB_CLIENT_ID,
       client_secret: process.env.GITHUB_CLIENT_SECRET,
       code,
-      redirect_uri: new URL("/api/auth/callback", origin).toString(),
+      redirect_uri: `${origin}/api/auth/callback`,
     }),
   }).then((r) => r.json()).catch(() => ({}));
 
@@ -46,7 +48,7 @@ export async function GET(req) {
 
   const user = await upsertUser({
     githubId: me.id, login: me.login, name: me.name, avatar: me.avatar_url,
-    bio: me.bio, token, scope: res.scope || "",
+    bio: me.bio, ...tokenFields(res),
   });
 
   // Collect the GitHub half now so the page has something on it immediately.
@@ -58,5 +60,5 @@ export async function GET(req) {
   }
 
   await setSession(user.slug);
-  return Response.redirect(new URL(`/${user.slug}`, origin), 302);
+  return Response.redirect(`${origin}/${user.slug}`, 302);
 }
