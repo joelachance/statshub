@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { buildSnapshot } from "@/lib/snapshot.mjs";
 import Dashboard from "@/components/Dashboard";
 import OwnerBar from "@/components/OwnerBar";
+import { isGitHubApp } from "@/lib/ghapp";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,16 @@ export default async function UserPage({ params, searchParams }) {
 
   return (
     <>
-      {isOwner && <OwnerBar slug={user.slug} hasAgents={stats.has.agents} freshKey={key} keyPrefix={user.key_prefix} scope={user.gh_scope} />}
+      {isOwner && (
+        <OwnerBar
+          slug={user.slug}
+          hasAgents={stats.has.agents}
+          freshKey={key}
+          keyPrefix={user.key_prefix}
+          needsInstall={isGitHubApp() && !user.gh_installations}
+          privateContributions={stats.headline.privateContributions}
+        />
+      )}
       <Dashboard stats={stats} />
     </>
   );

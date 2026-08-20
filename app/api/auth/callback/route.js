@@ -1,9 +1,10 @@
 import { cookies } from "next/headers";
-import { upsertUser, putGitHub } from "@/lib/store";
+import { upsertUser, putGitHub, setInstallations } from "@/lib/store";
 import { setSession } from "@/lib/session";
 import { collectGitHub, githubToJSON } from "@/lib/github.mjs";
 import { publicOrigin } from "@/lib/origin";
 import { tokenFields } from "@/lib/ghtoken";
+import { countInstallations } from "@/lib/ghapp";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,6 +51,10 @@ export async function GET(req) {
     githubId: me.id, login: me.login, name: me.name, avatar: me.avatar_url,
     bio: me.bio, ...tokenFields(res),
   });
+
+  // Knowing this lets the page say plainly why private work is missing.
+  const installs = await countInstallations(token);
+  if (installs !== null) await setInstallations(user.slug, installs);
 
   // Collect the GitHub half now so the page has something on it immediately.
   try {

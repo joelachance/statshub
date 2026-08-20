@@ -2,7 +2,7 @@
 import { useState } from "react";
 
 /** Only rendered for the signed-in owner of the page. */
-export default function OwnerBar({ slug, hasAgents, freshKey, keyPrefix, scope }) {
+export default function OwnerBar({ slug, hasAgents, freshKey, keyPrefix, needsInstall, privateContributions }) {
   const [copied, setCopied] = useState(false);
   const cmd = `npx statshub ${freshKey || (keyPrefix ? keyPrefix + "…" : "")}`.trim();
   const canCopy = Boolean(freshKey);
@@ -39,16 +39,30 @@ export default function OwnerBar({ slug, hasAgents, freshKey, keyPrefix, scope }
           <form action="/api/refresh" method="post">
             <button className="text-[12px] text-muted hover:text-ink transition-colors">Refresh GitHub</button>
           </form>
-          {!String(scope || "").includes("repo") && (
-            <a href="/api/auth/github?private=1" className="text-[12px] text-muted hover:text-ink transition-colors">
-              Include private
-            </a>
-          )}
           <form action="/api/auth/logout" method="post">
             <button className="text-[12px] text-faint hover:text-ink transition-colors">Sign out</button>
           </form>
         </div>
       </div>
+
+      {needsInstall && (
+        <div className="mx-auto max-w-[1100px] px-6 pb-3">
+          <div className="rounded-lg border border-line bg-bg px-4 py-3 text-[12.5px] leading-relaxed">
+            <span className="text-ink">Private work is not being counted.</span>{" "}
+            <span className="text-muted">
+              {"Authorising the app is not enough — GitHub only reveals an account's private repositories to apps "}
+              <em>installed</em>
+              {privateContributions
+                ? ` on it, and you have ${privateContributions.toLocaleString()} private contributions in this window. `
+                : " on it. "}
+              Install it on your account and on any organisation whose work should count.
+            </span>{" "}
+            <a href="/api/auth/install" className="text-ink underline underline-offset-2 whitespace-nowrap">
+              Install now
+            </a>
+          </div>
+        </div>
+      )}
 
       {!hasAgents && (
         <div className="mx-auto max-w-[1100px] px-6 pb-3 text-[12px] text-muted">

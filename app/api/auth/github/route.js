@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { publicOrigin } from "@/lib/origin";
+import { isGitHubApp, installUrl } from "@/lib/ghapp";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,14 @@ export async function GET(req) {
     httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production",
     path: "/", maxAge: 600,
   });
+
+  // A GitHub App only sees private repositories on accounts it is installed
+  // on, so send people through installation rather than bare authorisation.
+  // Installation authorises too, which is why this replaces the OAuth hop.
+  if (isGitHubApp() && url.searchParams.get("authorize_only") !== "1") {
+    const install = installUrl(state);
+    if (install) return Response.redirect(install, 302);
+  }
 
   const to = new URL("https://github.com/login/oauth/authorize");
   to.searchParams.set("client_id", id);

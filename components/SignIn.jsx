@@ -5,7 +5,7 @@ const SOURCES = [
   ["opencode", "opencode"], ["pi", "pi"], ["github", "GitHub"],
 ];
 
-export default function SignIn({ error, count, configured }) {
+export default function SignIn({ error, count, configured, isApp }) {
   return (
     <main className="mx-auto max-w-[520px] px-6 py-24">
       <h1 className="text-[26px] font-semibold text-ink tracking-tight">statshub</h1>
@@ -35,7 +35,7 @@ export default function SignIn({ error, count, configured }) {
           className="mt-8 inline-flex items-center gap-2.5 rounded-lg bg-ink px-5 py-3 text-[14px] font-medium text-bg hover:opacity-90 transition-opacity"
         >
           <ToolIcon tool="github" size={16} />
-          Sign in with GitHub
+          {isApp ? "Install and sign in with GitHub" : "Sign in with GitHub"}
         </a>
       ) : (
         <p className="mt-8 text-[13px] text-muted">
@@ -44,7 +44,10 @@ export default function SignIn({ error, count, configured }) {
       )}
 
       <p className="text-[12px] text-faint mt-4">
-        Signing in reads your public GitHub activity. Agent stats come from a command you run locally.
+        {isApp
+          ? "Installing lets statshub count your private commits and pull requests as well as public ones. Choose the account and any organisations whose work should count."
+          : "Signing in reads your GitHub activity."}{" "}
+        Agent stats come from a command you run locally.
       </p>
 
       {count > 0 && <p className="text-[12px] text-faint mt-10">{count} {count === 1 ? "profile" : "profiles"} published</p>}
